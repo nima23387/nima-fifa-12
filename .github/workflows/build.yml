@@ -25,6 +25,24 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ant wget unzip
 
+      - name: Extract game source
+        run: |
+          unzip -q NimaFootball2026-Source.zip -d unpacked
+
+          PROJECT_DIR=$(find "$GITHUB_WORKSPACE/unpacked" \
+            -name AndroidManifest.xml \
+            -not -path '*/.git/*' \
+            -printf '%h\n' | head -n 1)
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: AndroidManifest.xml not found in ZIP"
+            find unpacked -maxdepth 5 -type f
+            exit 1
+          fi
+
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Game source found: $PROJECT_DIR"
+
       - name: Install Android SDK
         run: |
           mkdir -p "$ANDROID_HOME"
@@ -49,35 +67,20 @@ jobs:
 
           AAPT=$(find /tmp/bt -type f -name aapt | head -n 1)
           test -n "$AAPT"
+
           cp -a "$(dirname "$AAPT")/." "$ANDROID_HOME/build-tools/23.0.3/"
           chmod -R a+rX,u+w "$ANDROID_HOME/build-tools/23.0.3"
 
-      - name: Find Android project
-        run: |
-          PROJECT_DIR=$(find "$GITHUB_WORKSPACE" \
-            -name AndroidManifest.xml \
-            -not -path '*/.git/*' \
-            -printf '%h\n' | head -n 1)
-
-          if [ -z "$PROJECT_DIR" ]; then
-            echo "ERROR: AndroidManifest.xml not found!"
-            find "$GITHUB_WORKSPACE" -maxdepth 4 -type f
-            exit 1
-          fi
-
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-          echo "Found project: $PROJECT_DIR"
+          echo "sdk.dir=$ANDROID_HOME" > "$PROJECT_DIR/local.properties"
 
       - name: Generate Ant project
         run: |
-          echo "sdk.dir=$ANDROID_HOME" > "$PROJECT_DIR/local.properties"
-
           "$ANDROID_HOME/tools/android" update project \
             --path "$PROJECT_DIR" \
             --target android-10
 
           test -f "$PROJECT_DIR/build.xml"
-          echo "Ant project generated successfully!"
+          echo "BUILD FILE CREATED"
 
       - name: Build APK
         run: |
@@ -89,5 +92,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Nima-Football-2026-APK
-          path: '**/bin/*-debug.apk'
+          path: unpacked/NimaFootball2026/bin/*-debug.apk
           if-no-files-found: error
