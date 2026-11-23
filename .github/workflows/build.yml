@@ -20,12 +20,12 @@ jobs:
           distribution: temurin
           java-version: '8'
 
-      - name: Install build tools
+      - name: Install tools
         run: |
           sudo apt-get update
           sudo apt-get install -y ant wget unzip
 
-      - name: Install legacy Android SDK
+      - name: Install Android SDK
         run: |
           mkdir -p "$ANDROID_HOME"
           cd /tmp
@@ -36,41 +36,37 @@ jobs:
           mkdir -p "$ANDROID_HOME/platforms/android-10"
 
           wget -q https://dl.google.com/android/repository/android-2.3.3_r02.zip
-          unzip -q android-2.3.3_r02.zip -d /tmp/android-platform
+          unzip -q android-2.3.3_r02.zip -d /tmp/platform
 
-          PLATFORM=$(find /tmp/android-platform -type d -name android-10 | head -n 1)
-
-          if [ -z "$PLATFORM" ]; then
-            PLATFORM=$(find /tmp/android-platform -type f -name android.jar -printf '%h\n' | head -n 1)
-          fi
-
+          PLATFORM=$(find /tmp/platform -name android.jar -printf '%h\n' | head -n 1)
           test -n "$PLATFORM"
           cp -a "$PLATFORM/." "$ANDROID_HOME/platforms/android-10/"
 
           mkdir -p "$ANDROID_HOME/build-tools/23.0.3"
 
-          wget -q https://dl.google.com/android/repository/build-tools_r23.0.3-linux.zip -O /tmp/build-tools.zip
-          unzip -q /tmp/build-tools.zip -d /tmp/build-tools
+          wget -q https://dl.google.com/android/repository/build-tools_r23.0.3-linux.zip -O /tmp/bt.zip
+          unzip -q /tmp/bt.zip -d /tmp/bt
 
-          AAPT=$(find /tmp/build-tools -type f -name aapt | head -n 1)
+          AAPT=$(find /tmp/bt -type f -name aapt | head -n 1)
           test -n "$AAPT"
-
           cp -a "$(dirname "$AAPT")/." "$ANDROID_HOME/build-tools/23.0.3/"
           chmod -R a+rX,u+w "$ANDROID_HOME/build-tools/23.0.3"
 
           echo "sdk.dir=$ANDROID_HOME" > local.properties
 
-          echo "$ANDROID_HOME/tools" >> "$GITHUB_PATH"
-          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
-
-      - name: Generate Ant project files
+      - name: Generate Ant build.xml
         run: |
-          "$ANDROID_HOME/tools/android" update project --path . --target android-10
+          "$ANDROID_HOME/tools/android" update project \
+            --path "$GITHUB_WORKSPACE" \
+            --target android-10
 
-      - name: Build debug APK
+          test -f build.xml
+          echo "build.xml successfully generated"
+
+      - name: Build APK
         run: |
-          ant clean
-          ant debug
+          ant -f "$GITHUB_WORKSPACE/build.xml" clean
+          ant -f "$GITHUB_WORKSPACE/build.xml" debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
