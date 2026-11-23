@@ -71,6 +71,10 @@ jobs:
           cp -a "$(dirname "$AAPT")/." "$ANDROID_HOME/build-tools/23.0.3/"
           chmod -R a+rX,u+w "$ANDROID_HOME/build-tools/23.0.3"
 
+          echo "Checking old build tools..."
+          test -f "$ANDROID_HOME/build-tools/23.0.3/dx"
+          chmod +x "$ANDROID_HOME/build-tools/23.0.3/dx"
+
           echo "sdk.dir=$ANDROID_HOME" > "$PROJECT_DIR/local.properties"
 
       - name: Generate Ant project
@@ -80,11 +84,19 @@ jobs:
             --target android-10
 
           test -f "$PROJECT_DIR/build.xml"
-          echo "BUILD FILE CREATED"
+
+          echo "sdk.buildtools=23.0.3" >> "$PROJECT_DIR/project.properties"
+
+          echo "Selected build tools:"
+          grep sdk.buildtools "$PROJECT_DIR/project.properties"
 
       - name: Build APK
         run: |
           cd "$PROJECT_DIR"
+
+          echo "Checking dx..."
+          test -f "$ANDROID_HOME/build-tools/23.0.3/dx"
+
           ant clean
           ant debug
 
